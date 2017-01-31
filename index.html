@@ -5,9 +5,54 @@
 <body>
 
 
+
+<!–– My JS code -->
 <script type="text/javascript" src="source.js"></script>
-<canvas id="gl-canvas" width="960"" height="540">
-Oops ... your browser doesn't support the HTML5 canvas element
+<!–– WebGL source and boilerplate stuff -->
+<script type="text/javascript" src="./common/webgl-utils.js"></script>
+<script type="text/javascript" src="./common/initShaders.js"></script>
+<script type="text/javascript" src="./common/MV.js"></script>
+
+
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+//positioning stuff goes here
+
+attribute  vec4 vPosition;
+attribute  vec4 vColor;
+varying vec4 fColor;
+
+attribute vec3 crosshair_coordinates; 
+
+uniform mat4 model_transform;       // # New variable / piece of our shader's state we can influence 
+uniform mat4 camera_transform;      // # Another new variable
+
+uniform vec3 theta;                 // # We won't use this one anymore even though the shader has it
+
+
+void main(){
+    fColor = vColor;
+    gl_Position = camera_transform * model_transform * vPosition;
+    gl_Position.z = -gl_Position.z;
+
+    
+}
+</script>
+
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+//color stuff goes here
+precision mediump float;
+
+varying vec4 fColor;
+void main(){
+	    gl_FragColor = fColor;
+}
+</script>
+
+
+
+<canvas id="gl-canvas" width="960" height="540">
 </canvas>
 
 
