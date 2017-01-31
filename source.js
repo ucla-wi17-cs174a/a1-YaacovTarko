@@ -5,13 +5,14 @@ var gl;
 var canvas;
 var gl;
 
-var NumVertices  = 36*8;
+var NumVertices  = 36;
 
 var points = [];
 var colors = [];
 
-var dist=0; //distance of the cubes from the center of the display
+var dist=10; //distance of the cubes from the origin ALONG EACH AXIS 
 
+var cBuffer; 
 /* rotation stuff that I don't need 
 var xAxis = 0;
 var yAxis = 1;
@@ -36,14 +37,7 @@ window.onload=function init()
 
 
     //create all eight cubes. arg 1 means it's in a positive position on that axis, -1 means negative 
-   	colorCubes( 1, 1, 1);
-   	colorCubes( 1, 1,-1);
-   	colorCubes( 1,-1, 1);
-   	colorCubes(-1, 1, 1);
-   	colorCubes( 1,-1,-1);
-   	colorCubes(-1, 1,-1);
-   	colorCubes(-1,-1, 1);
-   	colorCubes(-1,-1,-1);
+   	colorCube();
 
     gl.viewport( 0, 0, canvas.width, canvas.height );
     //clear to black
@@ -60,7 +54,7 @@ window.onload=function init()
     gl.clear(gl.COLOR_BUFFER_BIT); //clear to black
 
     //create and bind color buffer
-    var cBuffer = gl.createBuffer();
+    cBuffer = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, cBuffer );
     gl.bufferData( gl.ARRAY_BUFFER, flatten(colors), gl.STATIC_DRAW );
 
@@ -85,10 +79,9 @@ window.onload=function init()
 //    thetaLoc = gl.getUniformLocation(program, "theta"); // # Repeat for our two new shader variables (matrices):
     
 
-/*  This is how we get pointers to transforms, which we can set
     model_transform_loc = gl.getUniformLocation(program, "model_transform");   // # Pointer to our GPU variable
     camera_transform_loc = gl.getUniformLocation(program, "camera_transform"); // # Pointer to our GPU variable
-*/
+
 
 window.addEventListener("keydown", function (event) {
 	if (event.defaultPrevented) {
@@ -170,27 +163,27 @@ function keypresslistener(event){
 }
 
 
-function colorCubes(x, y, z)
+function colorCube()
 {
-    quad( 1, 0, 3, 2, x, y, z );
-    quad( 2, 3, 7, 6, x, y, z );
-    quad( 3, 0, 4, 7, x, y, z );
-    quad( 6, 5, 1, 2, x, y, z );
-    quad( 4, 5, 6, 7, x, y, z );
-    quad( 5, 4, 0, 1, x, y, z );
+    quad( 1, 0, 3, 2);
+    quad( 2, 3, 7, 6);
+    quad( 3, 0, 4, 7);
+    quad( 6, 5, 1, 2);
+    quad( 4, 5, 6, 7);
+    quad( 5, 4, 0, 1);
 }
 
-function quad(a, b, c, d, x, y, z)
+function quad(a, b, c, d)
 {
     var vertices = [
-        vec4( -0.5+dist*x, -0.5+dist*y,  0.5+dist*z, 1.0 ),
-        vec4( -0.5+dist*x,  0.5+dist*y,  0.5+dist*z, 1.0 ),
-        vec4(  0.5+dist*x,  0.5+dist*y,  0.5+dist*z, 1.0 ),
-        vec4(  0.5+dist*x, -0.5+dist*y,  0.5+dist*z, 1.0 ),
-        vec4( -0.5+dist*x, -0.5+dist*y, -0.5+dist*z, 1.0 ),
-        vec4( -0.5+dist*x,  0.5+dist*y, -0.5+dist*z, 1.0 ),
-        vec4(  0.5+dist*x,  0.5+dist*y, -0.5+dist*z, 1.0 ),
-        vec4(  0.5+dist*x, -0.5+dist*y, -0.5+dist*z, 1.0 )
+        vec4( -0.5, -0.5,  0.5, 1.0 ),
+        vec4( -0.5,  0.5,  0.5, 1.0 ),
+        vec4(  0.5,  0.5,  0.5, 1.0 ),
+        vec4(  0.5, -0.5,  0.5, 1.0 ),
+        vec4( -0.5, -0.5, -0.5, 1.0 ),
+        vec4( -0.5,  0.5, -0.5, 1.0 ),
+        vec4(  0.5,  0.5, -0.5, 1.0 ),
+        vec4(  0.5, -0.5, -0.5, 1.0 )
     ];
 
     var vertexColors = [
@@ -226,7 +219,41 @@ function render()
 {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    gl.drawArrays( gl.TRIANGLES, 0, NumVertices );
+
+    //camera transform
+    var camera=mat4(); 
+    
+    camera=mult(camera, scalem(.08,.08,.08));
+    //camera = mult(camera, translate(0, 0, 20));
+
+    //This doesn't do anything yet. Modify when you need to rotate the camera
+    camera = mult(camera, rotate(0, 0, 1, 0)); 
+    //multiply by perspective matrix. Use 45 as the field of view parameter, small zNear, big zFar.
+    // -11 and 11 work for znear and zfar because you're moving the cubes 10 away from the origin 
+
+	//camera=mult(camera, perspective(45, 1, -20, 20));
+	
+    gl.uniformMatrix4fv(camera_transform_loc, false, flatten(camera)); 
+
+    //generate a model view matrix to look at the cubes from along the Z-axis
+
+/*
+bindBuffer
+bufferData -- will eventually need gl.DYNAMIC_DRAW
+gl.uniformMat
+
+*/
+
+    //Draw all 8 cubes. 1 in args represents positive position relative to the axis, -1 represents negative. 
+    drawcube(1, 1, 1);
+    drawcube(1, 1, -1);
+    drawcube(1, -1, 1);
+    drawcube(-1, 1, 1);
+    drawcube(1, -1, -1);
+    drawcube(-1, 1, -1);
+    drawcube(-1, -1, 1);
+    drawcube(-1, -1, -1);
+
 
     if(render_crosshair){
     	//render the crosshair:
@@ -234,5 +261,16 @@ function render()
     }
 
     requestAnimFrame( render );
+}
+
+function drawcube(x, y, z){
+	var mv_transform = mat4();
+	//moves cube to its destination. 
+	mv_transform=mult(mv_transform, translate(dist*x, dist*y, dist*z));
+	gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, flatten(colors), gl.DYNAMIC_DRAW); 
+    gl.uniformMatrix4fv( model_transform_loc, false, flatten(mv_transform /* mat4()*/));    //Fill in GPU's model transform with the set matrix
+    gl.drawArrays( gl.TRIANGLES, 0, NumVertices );
+
 }
 
