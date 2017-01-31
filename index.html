@@ -32,9 +32,8 @@ uniform vec3 theta;                 // # We won't use this one anymore even thou
 
 void main(){
     fColor = vColor;
-    gl_Position = camera_transform * model_transform * vPosition;
-    gl_Position.z = -gl_Position.z;
-
+    gl_Position = /*camera_transform * model_transform * */vPosition;
+    //gl_Position.z = -gl_Position.z;
     
 }
 </script>

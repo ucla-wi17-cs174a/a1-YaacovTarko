@@ -5,19 +5,21 @@ var gl;
 var canvas;
 var gl;
 
-var NumVertices  = 36;
+var NumVertices  = 36*8;
 
 var points = [];
 var colors = [];
 
+var dist=0; //distance of the cubes from the center of the display
+
+/* rotation stuff that I don't need 
 var xAxis = 0;
 var yAxis = 1;
 var zAxis = 2;
 
 var axis = 0;
 var theta = [ 0, 0, 0 ];
-
-var thetaLoc;
+*/
 
 var model_transform_loc;     
 var camera_transform_loc;     
@@ -32,6 +34,16 @@ window.onload=function init()
 	gl = WebGLUtils.setupWebGL( canvas );
     if ( !gl ) { alert( "WebGL isn't available" ); }
 
+
+    //create all eight cubes. arg 1 means it's in a positive position on that axis, -1 means negative 
+   	colorCubes( 1, 1, 1);
+   	colorCubes( 1, 1,-1);
+   	colorCubes( 1,-1, 1);
+   	colorCubes(-1, 1, 1);
+   	colorCubes( 1,-1,-1);
+   	colorCubes(-1, 1,-1);
+   	colorCubes(-1,-1, 1);
+   	colorCubes(-1,-1,-1);
 
     gl.viewport( 0, 0, canvas.width, canvas.height );
     //clear to black
@@ -143,11 +155,14 @@ The cross hairs themselves can be a simple set of lines rendered in white – 5 
 
     	default:
       	return; // Quit when this doesn't handle the key event.
-  }
+      }
+  
 
   // Cancel the default action to avoid it being handled twice
-  event.preventDefault();
-}, true);
+  event.preventDefault(); }, true);
+
+
+  	render(); 
 }
 
 function keypresslistener(event){
@@ -155,27 +170,27 @@ function keypresslistener(event){
 }
 
 
-function colorCube()
+function colorCubes(x, y, z)
 {
-    quad( 1, 0, 3, 2 );
-    quad( 2, 3, 7, 6 );
-    quad( 3, 0, 4, 7 );
-    quad( 6, 5, 1, 2 );
-    quad( 4, 5, 6, 7 );
-    quad( 5, 4, 0, 1 );
+    quad( 1, 0, 3, 2, x, y, z );
+    quad( 2, 3, 7, 6, x, y, z );
+    quad( 3, 0, 4, 7, x, y, z );
+    quad( 6, 5, 1, 2, x, y, z );
+    quad( 4, 5, 6, 7, x, y, z );
+    quad( 5, 4, 0, 1, x, y, z );
 }
 
-function quad(a, b, c, d)
+function quad(a, b, c, d, x, y, z)
 {
     var vertices = [
-        vec4( -0.5, -0.5,  0.5, 1.0 ),
-        vec4( -0.5,  0.5,  0.5, 1.0 ),
-        vec4(  0.5,  0.5,  0.5, 1.0 ),
-        vec4(  0.5, -0.5,  0.5, 1.0 ),
-        vec4( -0.5, -0.5, -0.5, 1.0 ),
-        vec4( -0.5,  0.5, -0.5, 1.0 ),
-        vec4(  0.5,  0.5, -0.5, 1.0 ),
-        vec4(  0.5, -0.5, -0.5, 1.0 )
+        vec4( -0.5+dist*x, -0.5+dist*y,  0.5+dist*z, 1.0 ),
+        vec4( -0.5+dist*x,  0.5+dist*y,  0.5+dist*z, 1.0 ),
+        vec4(  0.5+dist*x,  0.5+dist*y,  0.5+dist*z, 1.0 ),
+        vec4(  0.5+dist*x, -0.5+dist*y,  0.5+dist*z, 1.0 ),
+        vec4( -0.5+dist*x, -0.5+dist*y, -0.5+dist*z, 1.0 ),
+        vec4( -0.5+dist*x,  0.5+dist*y, -0.5+dist*z, 1.0 ),
+        vec4(  0.5+dist*x,  0.5+dist*y, -0.5+dist*z, 1.0 ),
+        vec4(  0.5+dist*x, -0.5+dist*y, -0.5+dist*z, 1.0 )
     ];
 
     var vertexColors = [
@@ -211,10 +226,12 @@ function render()
 {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    theta[axis] += 2.0;
-    gl.uniform3fv(thetaLoc, theta);
-
     gl.drawArrays( gl.TRIANGLES, 0, NumVertices );
+
+    if(render_crosshair){
+    	//render the crosshair:
+
+    }
 
     requestAnimFrame( render );
 }

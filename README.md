@@ -3,3 +3,7 @@ My assignment runs correctly in Google Chrome, and hasn't been tested in other b
 
 The event listener and switch statement that handles keyboard input was modified from code at https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
 
+Extra credit:
+1) Instance each cube from the same geometry data:
+I'm not sure if my solution counts as doing this. Instead of hard-coding the locations of each cube, I hard-coded the location of a cube around the origin and then transformed
+each cube's location based on which side of the x,y, and z axes it was on. 
