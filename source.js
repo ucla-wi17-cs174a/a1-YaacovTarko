@@ -36,6 +36,24 @@ var cam_x=0;
 var cam_y=0;
 var cam_z=-30; 
 
+//Describes the lines that will be drawn around the cube. Starts centered around the origin, and will be translated to each cube  
+/*
+[
+ vec4(0.5, 0.5, 0.5), vec4(0.5, 0.5, -0.5),
+ vec4(0.5, 0.5, 0.5), vec4(0.5, -0.5, 0.5),
+ vec4(0.5, 0.5, 0.5), vec4(-0.5, 0.5, 0.5),
+ vec4(0.5, 0.5, -0.5), vec4(0.5, -0.5, -0.5),
+ vec4(0.5, 0.5, -0.5), vec4(-0.5, 0.5, -0.5),
+ vec4(0.5, -0.5, 0.5), vec4(-0.5, -0.5, 0.5),
+ vec4(0.5, -0.5, 0.5), vec4(0.5, -0.5, -0.5),
+ vec4(-0.5, 0.5, 0.5), vec4(-0.5, 0.5, -0.5),
+ vec4(-0.5, 0.5, 0.5), vec4(-0.5, -0.5, 0.5),
+ vec4(-0.5, -0.5, 0.5), vec4(-0.5, -0.5, -0.5),
+ vec4(-0.5, 0.5, -0.5), vec4(-0.5, -0.5, -0.5),
+ vec4(0.5, -0.5, -0.5), vec4(-0.5, -0.5, -0.5),
+]; 
+*/
+
 window.onload=function init()
 {
 	var canvas = document.getElementById("gl-canvas")
@@ -292,7 +310,7 @@ function render()
 	camera=mult(camera, perspective(field_of_view, 1, -11, 11));
 	
     //Rotate the camera angle
-    camera = mult(camera, rotate(azimuth_cam_angle, 0, 1, 0)); 
+    camera = mult(camera, quaternion_rotate(azimuth_cam_angle, 0, 1, 0)); 
 
 	
     //Moves the camera up and down the axes
@@ -354,11 +372,17 @@ function drawcube(x, y, z, colorID){
 
 }
 
+//outline the cube edges in white to make them visible
 function drawlines(x, y, z){
+
+
 	//make the boundary lines white
 	setWhite(); 
 
-	//outline the cube faces in white to make them visible
+	//move the cube edges to the same places as the cubes
+	var mv_transform=mat4(); 
+	mv_transform=mult(mv_transform, translate(dist*x, dist*y, dist*z)); 
+
 	gl.drawArrays(gl.LINES, 0, NumVertices)	
 
 }

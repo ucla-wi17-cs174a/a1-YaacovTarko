@@ -367,6 +367,33 @@ function rotate( angle, axis )
 
 //----------------------------------------------------------------------------
 
+function quaternion_rotate(angle, axis)
+{
+    if ( !Array.isArray(axis) ) {
+        axis = [ arguments[1], arguments[2], arguments[3] ];
+    }
+
+    var quaternion = vec4(radians(angle), axis[0], axis[1], axis[2]);
+    normalize(quaternion); 
+
+    var w = quaternion[0];
+    var x = quaternion[1];
+    var y = quaternion[2];
+    var z = quaternion[3];
+
+    var result = mat4(
+        vec4(1-2*(y*y + z*z), 2*(x*y-w*z), 2*(x*z-w*y), 0);
+        vec4(2*(x*y + w*z), 1-2*(x*x+z*z), 2*(y*z-w*x), 0);
+        vec4(2*(x*z-w*y), 2*(y*z+w*x), 1-2*(x*x+y*y), 0);
+        vec4(0, 0, 0, 1); 
+    );
+
+    return result;
+}
+
+
+//----------------------------------------------------------------------------
+
 function scale( x, y, z )
 {
     if ( Array.isArray(x) && x.length == 3 ) {
