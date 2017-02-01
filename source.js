@@ -310,7 +310,8 @@ function render()
 	camera=mult(camera, perspective(field_of_view, 1, -11, 11));
 	
     //Rotate the camera angle
-    camera = mult(camera, quaternion_rotate(azimuth_cam_angle, 0, 1, 0)); 
+    var rotation_matrix = rotate(azimuth_cam_angle, 0, 1, 0);
+    camera = mult(camera, rotation_matrix); 
 
 	
     //Moves the camera up and down the axes
