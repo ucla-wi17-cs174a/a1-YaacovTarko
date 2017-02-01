@@ -6,21 +6,25 @@ var canvas;
 var gl;
 
 var NumVertices  = 36;
+var NumLineVertices=24; 
+var NumCrosshairVertices=4; 
 
+//stores the point locations and color data for cube faces
 var points = [];
 var colors = [];
+
+//stores the point locations and color data for cube edges
+var edgepoints=[];
+var edgecolors=[];
+
+//stores the point locations and color data for crosshair 
+var crosshairpoints=[];
+var crosshaircolors=[]; 
 
 var dist=10; //distance of the cubes from the origin along EACH axis 
 
 var cBuffer; 
-/* rotation stuff that I don't need 
-var xAxis = 0;
-var yAxis = 1;
-var zAxis = 2;
-
-var axis = 0;
-var theta = [ 0, 0, 0 ];
-*/
+var vBuffer; 
 
 var model_transform_loc;     
 var camera_transform_loc;     
@@ -28,31 +32,50 @@ var camera_transform_loc;
 
 //for key-press options
 
-var render_crosshair=false; 
-var field_of_view=45; 
-var numColorCycles=0; 
-var azimuth_cam_angle=0; 
-var cam_x=0;
+var field_of_view=45;    //default fov, changes with w and n
+var numColorCycles=0;    //each press of c will increment this variable, causing the color to cycle
+var azimuth_cam_angle=0;  //changes with left and right arrow keys
+var cam_x=0; //y changes with up and down arrow keys. x and z change with i, j, k, and m 			
 var cam_y=0;
 var cam_z=-30; 
 
-//Describes the lines that will be drawn around the cube. Starts centered around the origin, and will be translated to each cube  
-/*
-[
- vec4(0.5, 0.5, 0.5), vec4(0.5, 0.5, -0.5),
- vec4(0.5, 0.5, 0.5), vec4(0.5, -0.5, 0.5),
- vec4(0.5, 0.5, 0.5), vec4(-0.5, 0.5, 0.5),
- vec4(0.5, 0.5, -0.5), vec4(0.5, -0.5, -0.5),
- vec4(0.5, 0.5, -0.5), vec4(-0.5, 0.5, -0.5),
- vec4(0.5, -0.5, 0.5), vec4(-0.5, -0.5, 0.5),
- vec4(0.5, -0.5, 0.5), vec4(0.5, -0.5, -0.5),
- vec4(-0.5, 0.5, 0.5), vec4(-0.5, 0.5, -0.5),
- vec4(-0.5, 0.5, 0.5), vec4(-0.5, -0.5, 0.5),
- vec4(-0.5, -0.5, 0.5), vec4(-0.5, -0.5, -0.5),
- vec4(-0.5, 0.5, -0.5), vec4(-0.5, -0.5, -0.5),
- vec4(0.5, -0.5, -0.5), vec4(-0.5, -0.5, -0.5),
-]; 
-*/
+//to render the crosshair
+var render_crosshair=false;  //flips when + is pressed to indicate whether crosshair should be rendered
+
+
+
+//creates a rotation matrix using quaternions
+function quaternion_rotate(angle, x, y, z)
+{
+    var axis=vec4(x, y, z);
+    normalize(axis);
+
+    angle=radians(angle);
+    //generate the quaternion
+    var a=Math.cos(angle/2);
+    var b=axis[0]*Math.sin(angle/2);
+    var c=axis[1]*Math.sin(angle/2);
+    var d=axis[2]*Math.sin(angle/2);
+
+    var quaternion = vec4(a, b, c, d);
+    normalize(quaternion); 
+
+    var w = quaternion[0];
+    var x = quaternion[1];
+    var y = quaternion[2];
+    var z = quaternion[3];
+
+	//create the rotation matrix based on the quaternion
+    var result = mat4(
+        vec4(1-2*(y*y + z*z), 2*(x*y-w*z), 2*(x*z+w*y), 0),
+        vec4(2*(x*y + w*z), 1-2*(x*x+z*z), 2*(y*z-w*x), 0),
+        vec4(2*(x*z-w*y), 2*(y*z+w*x), 1-2*(x*x+y*y), 0),
+        vec4(0, 0, 0, 1)
+    );
+
+    return result;
+}
+
 
 window.onload=function init()
 {
@@ -71,10 +94,19 @@ window.onload=function init()
 	gl.useProgram(program); 
 
 
-	//create the initial cube at the origin that will be translated to the proper locations
+	//create the faces of the cube at the origin that will be translated to the proper locations
    	initializeCube();
 
+   	//create the outline of the cube at the origin that will be translated to the proper locations
+   	initializeOutline(); 
 
+   	//create the crosshair at the origin that will be translated to the proper location
+   	initializeCrosshair(); 
+
+   	//Since the colors of the outline and the crosshair won't change, it only has to be set once: 
+   	setWhite(); 
+
+   	
     gl.clear(gl.COLOR_BUFFER_BIT); //clear to black
 
     //create and bind color buffer
@@ -89,7 +121,7 @@ window.onload=function init()
     gl.enableVertexAttribArray( vColor );
 
     //create and bind vertex buffer
-    var vBuffer = gl.createBuffer();
+    vBuffer  = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
     gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW );
 
@@ -259,9 +291,34 @@ function quad(a, b, c, d)
     for ( var i = 0; i < indices.length; ++i ) {
         points.push( vertices[indices[i]] );
         //colors.push( vertexColors[indices[i]] );
-
-
     }
+}
+
+function initializeOutline(){
+	//Each pair of vertices in ths array represents a line between two vertices of the unit cube
+	edgepoints=[
+	vec4(0.5, 0.5, 0.5), vec4(0.5, 0.5, -0.5),
+	vec4(0.5, 0.5, 0.5), vec4(0.5, -0.5, 0.5),
+	vec4(0.5, 0.5, 0.5), vec4(-0.5, 0.5, 0.5),
+	vec4(0.5, 0.5, -0.5), vec4(0.5, -0.5, -0.5),	
+	vec4(0.5, 0.5, -0.5), vec4(-0.5, 0.5, -0.5),
+ 	vec4(0.5, -0.5, 0.5), vec4(-0.5, -0.5, 0.5),
+ 	vec4(0.5, -0.5, 0.5), vec4(0.5, -0.5, -0.5),
+ 	vec4(-0.5, 0.5, 0.5), vec4(-0.5, 0.5, -0.5),
+ 	vec4(-0.5, 0.5, 0.5), vec4(-0.5, -0.5, 0.5),
+ 	vec4(-0.5, -0.5, 0.5), vec4(-0.5, -0.5, -0.5),
+ 	vec4(-0.5, 0.5, -0.5), vec4(-0.5, -0.5, -0.5),
+ 	vec4(0.5, -0.5, -0.5), vec4(-0.5, -0.5, -0.5)
+	]; 
+
+}
+
+function initializeCrosshair(){
+	//each pair of vertices in this array represents a line of the crosshair
+	crosshairpoints=[
+	vec4(0.1, 0, 0), vec4(-0.1, 0, 0),
+	vec4(0, 0.1, 0), vec4(0, -0.1, 0)
+	]
 }
 
 function setColors(colorID)
@@ -269,16 +326,16 @@ function setColors(colorID)
     var vertexColors = [
         [ 0.5, 0.25, 1.0, 1.0 ], // salmon 
         [ 1.0, 0.5, 0.5, 1.0 ],  // red
-        [ 1.0, 1.0, 0.0, 1.0 ],  // yellow
-        [ 0.0, 1.0, 0.0, 1.0 ],  // green
+        [ 0.6, 0.6, 0.0, 1.0 ],  // yellow
+        [ 0.0, 0.8, 0.0, 1.0 ],  // green
         [ 0.0, 0.0, 1.0, 1.0 ],  // blue
         [ 1.0, 0.0, 1.0, 1.0 ],  // magenta
-        [ 0.0, 1.0, 1.0, 1.0 ],  // cyan
+        [ 0.0, 0.8, 0.8, 1.0 ],  // cyan
         [ 0.5, 0.5, 0.5, 1.0 ]   // gray
     ];
 	
 	
-    for ( var i = 0; i < 36; i++ ){
+    for ( var i = 0; i < NumVertices; i++ ){
     		
         colors[i]=vertexColors[colorID%8]; 
 	}
@@ -287,8 +344,12 @@ function setColors(colorID)
 
 function setWhite()
 {
-	for(var i=0; i<36; i++){
-		colors[i]=[1.0, 1.0, 1.0, 1.0]; 
+	for(var i=0; i<NumLineVertices; i++){
+		edgecolors[i]=[1.0, 1.0, 1.0, 1.0]; 
+	}
+
+	for(var i=0; i<NumCrosshairVertices; i++){
+		crosshaircolors[i]=[1.0, 1.0, 1.0, 1.0];
 	}
 }
 
@@ -302,16 +363,17 @@ function render()
     
     
 
-
-    //zoom out so you can see all the cubes
+    //make everything smaller so you can see the cubes
     camera=mult(camera, scalem(.5,.5,.5));
+
 
     //multiply by perspective matrix. Use 45 as the initial field of view parameter, small zNear, big zFar.
 	camera=mult(camera, perspective(field_of_view, 1, -11, 11));
-	
+
+
     //Rotate the camera angle
-    var rotation_matrix = rotate(azimuth_cam_angle, 0, 1, 0);
-    camera = mult(camera, rotation_matrix); 
+    var rotation_matrix = quaternion_rotate(azimuth_cam_angle, 0, 1, 0);
+	camera = mult(camera, rotation_matrix); 
 
 	
     //Moves the camera up and down the axes
@@ -321,16 +383,7 @@ function render()
 	gl.uniformMatrix4fv( camera_transform_loc, false, flatten( camera ) );    // # Fill in GPU's camera transform
 
 	
-    gl.uniformMatrix4fv(camera_transform_loc, false, flatten(camera)); 
-
-    //generate a model view matrix to look at the cubes from along the Z-axis
-
-/*
-bindBuffer
-bufferData -- will eventually need gl.DYNAMIC_DRAW
-gl.uniformMat
-
-*/
+//    gl.uniformMatrix4fv(camera_transform_loc, false, flatten(camera)); 
 
 
 
@@ -345,12 +398,24 @@ gl.uniformMat
     drawcube(-1, -1, -1, numColorCycles+7);
 
 
+    //rebind the buffers to the cube edge data
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(colors), gl.STATIC_DRAW );
+
+
 	//draw boundary lines around the 8 cubes. 
 	drawlines(1, 1, 1);
+	drawlines(1, 1, -1);
+	drawlines(1, -1, 1);
+	drawlines(1, -1, -1); 
+	drawlines(-1, 1, 1);
+	drawlines(-1, 1, -1);
+	drawlines(-1, -1, 1);
+	drawlines(-1, -1, -1); 
 	
 
     if(render_crosshair){
     	//render the crosshair:
+    	drawcrosshair(); 
 
     }
 
@@ -365,25 +430,69 @@ function drawcube(x, y, z, colorID){
 	//color the cubes
 	setColors(colorID); 
 
+	//bind the vertex and color buffers to the cube face data
 	gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, flatten(colors), gl.DYNAMIC_DRAW); 
-    gl.uniformMatrix4fv( model_transform_loc, false, flatten(mv_transform /* mat4()*/));    //Fill in GPU's model transform with the set matrix
+    gl.uniformMatrix4fv( model_transform_loc, false, flatten(mv_transform));    //Fill in GPU's model transform with the set matrix
+	
+    gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW );
+	
     gl.drawArrays( gl.TRIANGLES, 0, NumVertices );
-
 
 }
 
 //outline the cube edges in white to make them visible
 function drawlines(x, y, z){
 
-
-	//make the boundary lines white
-	setWhite(); 
-
 	//move the cube edges to the same places as the cubes
 	var mv_transform=mat4(); 
 	mv_transform=mult(mv_transform, translate(dist*x, dist*y, dist*z)); 
 
-	gl.drawArrays(gl.LINES, 0, NumVertices)	
 
+	//bind the vertex and color buffers to the cube edge data
+	gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, flatten(edgecolors), gl.STATIC_DRAW);
+	gl.uniformMatrix4fv(model_transform_loc, false, flatten(mv_transform)); 
+
+    gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(edgepoints), gl.STATIC_DRAW );
+
+
+	gl.drawArrays(gl.LINES, 0, NumLineVertices)	
+
+}
+
+function drawcrosshair(){
+	var distance=0.2; //distance from the front of the camera to the crosshair
+
+	//since it's an orthographic projection, the camera and model-view transforms aren't needed, so we'll reset them to the identity matrix
+	var id_matrix=mat4(); 
+
+	gl.uniformMatrix4fv(model_transform_loc, false, flatten(id_matrix)); 
+	gl.uniformMatrix4fv( camera_transform_loc, false, flatten( id_matrix ) );
+
+
+	var angle=-azimuth_cam_angle; //since the entire scene is scaled by .5, the angle must be multiplied by 2
+
+	//rotate the crosshair so that it's facing the same direction as the camera.
+//	mv_transform=mult(mv_transform, rotate(angle, 0, 1, 0));
+	
+//move the crosshair so that it's directly in front of the camera
+//azimuthal position in the x-z plane should be a constant distance in front of the camera, determined with trigonometry 
+
+	var crosshair_y=-cam_y;
+	var crosshair_x=cam_x+distance*2* (Math.sin(angle) / (Math.sin(angle)+Math.cos(angle)) );
+	var crosshair_z=cam_z+distance*2* (Math.cos(angle) / (Math.sin(angle)+Math.cos(angle)) );
+//	mv_transform=mult(mv_transform, translate(crosshair_x, crosshair_y, crosshair_z));
+
+	//bind the vertex and color buffers to the crosshair data
+	gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, flatten(crosshaircolors), gl.STATIC_DRAW);
+
+    gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(crosshairpoints), gl.STATIC_DRAW );
+
+    gl.drawArrays(gl.LINES, 0, NumCrosshairVertices); 
+	
 }

@@ -8,4 +8,4 @@ Extra credit:
 Instead of hard-coding the locations of each cube, I hard-coded the location of one cube at the origin and then transformed each cube's location based on which side of the x, y, and z axes it was on. 
 
 3) Implement your rotation system using quaternions:
-I implemented quaternion-based rotation in a function called quaternion_rotate which I added to MV.js. 
+I implemented quaternion-based rotation in a function called quaternion_rotate, and used it for my camera rotation. 
