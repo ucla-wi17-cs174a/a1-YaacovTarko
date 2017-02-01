@@ -10,7 +10,7 @@ var NumVertices  = 36;
 var points = [];
 var colors = [];
 
-var dist=10; //distance of the cubes from the origin ALONG EACH AXIS 
+var dist=10; //distance of the cubes from the origin along EACH axis 
 
 var cBuffer; 
 /* rotation stuff that I don't need 
@@ -26,18 +26,21 @@ var model_transform_loc;
 var camera_transform_loc;     
 
 
-var render_crosshair=false; 
+//for key-press options
 
+var render_crosshair=false; 
+var field_of_view=45; 
+var numColorCycles=0; 
+var azimuth_cam_angle=0; 
+var cam_x=0;
+var cam_y=0;
+var cam_z=-30; 
 
 window.onload=function init()
 {
 	var canvas = document.getElementById("gl-canvas")
 	gl = WebGLUtils.setupWebGL( canvas );
     if ( !gl ) { alert( "WebGL isn't available" ); }
-
-
-    //create all eight cubes. arg 1 means it's in a positive position on that axis, -1 means negative 
-   	colorCube();
 
     gl.viewport( 0, 0, canvas.width, canvas.height );
     //clear to black
@@ -49,6 +52,9 @@ window.onload=function init()
 	var program = initShaders(gl, "vertex-shader", "fragment-shader");
 	gl.useProgram(program); 
 
+
+	//create the initial cube at the origin that will be translated to the proper locations
+   	initializeCube();
 
 
     gl.clear(gl.COLOR_BUFFER_BIT); //clear to black
@@ -89,8 +95,9 @@ window.addEventListener("keydown", function (event) {
   	}
 
   	switch (event.key) {
-//  		The ‘c’ key should cycle the colors between the cubes - 5 points.
+//  		The c key should cycle the colors between the cubes - 5 points.
   		case "c":
+  		numColorCycles++; 
   		break; 
 
 /*
@@ -99,49 +106,86 @@ Up and down arrow keys should control the position of the camera along the Y axi
 Each key press should adjust position by 0.25 units. - 5 points.
 */
     	case "ArrowDown":
+    	cam_y+=0.25; 
       	break;
     	case "ArrowUp":
+    	cam_y-=0.25; 
       	break;
 /*
 The left and right arrow keys control the heading (azimuth, like twisting your neck to say 'no') of the camera. 
 Each key press should rotate the heading by four (4) degrees - 10 points.
 */
     	case "ArrowLeft":
+    	azimuth_cam_angle-=4;         
        	break;
     	case "ArrowRight":
+    	azimuth_cam_angle+=4;
       	break;
 
 /*
 The letters i, j, k and m control forward, left, right and backward, respectively, relative to the camera's current heading. 
 Each key press should adjust position by 0.25 units. 
-The ‘r’ key should reset the view to the start position 
-	(recall, the start position is defined only in that all cubes are visible and the eye be positioned along the Z axis) – 20 points.
+The r key should reset the view to the start position 
+	(recall, the start position is defined only in that all cubes are visible and the eye be positioned along the Z axis) 20 points.
 */
     	case "i":
+    		//uses trig to determine how much of the 0.25 units should be along each axis
+  	    	var angle=radians(azimuth_cam_angle);
+  			var cos=Math.cos(angle);
+  			var sin=Math.sin(angle); 
+
+			cam_x-=0.25*(sin)/(Math.abs(cos)+Math.abs(sin)); 
+			cam_z+=0.25*(cos)/(Math.abs(cos)+Math.abs(sin));
      	break;
     	case "j":
+    	    var angle=radians(azimuth_cam_angle);
+    		var cos=Math.cos(angle);
+    		var sin=Math.sin(angle); 
+			
+			 
+			cam_x+=0.25*(cos)/(Math.abs(cos)+Math.abs(sin));
+			cam_z+=0.25*(sin)/(Math.abs(cos)+Math.abs(sin));
       	break;
 		case "k":
+    	    var angle=radians(azimuth_cam_angle);
+    		var cos=Math.cos(angle);
+    		var sin=Math.sin(angle); 
+			
+			cam_x-=0.25*(cos)/(Math.abs(cos)+Math.abs(sin));
+			cam_z-=0.25*(sin)/(Math.abs(cos)+Math.abs(sin));
+
      	break;
     	case "m":
+    		var angle=radians(azimuth_cam_angle);
+  			var cos=Math.cos(angle);
+  			var sin=Math.sin(angle); 
+
+			cam_x+=0.25*(sin)/(Math.abs(cos)+Math.abs(sin)); 
+			cam_z-=0.25*(cos)/(Math.abs(cos)+Math.abs(sin));
       	break;
 
       	case "r":
+      		//reset to the start position
+      		azimuth_cam_angle=0; 
+			cam_x=0;
+			cam_y=0;
+			cam_z=-30; 
       	break;
 
 /*
-The ‘n’ and ‘w’ keys should adjust the horizontal field of view (FOV) narrower or wider. 
+The n and w keys should adjust the horizontal field of view (FOV) narrower or wider. 
 One (1) degree per key press. Keep the display of your scene square as the FOV changes - 5 points.
 */
 		case "n":
+		field_of_view-=1;
 		break;
 		case "w":
+		field_of_view+=1; 
 		break;
 
 /*
-The ‘+’ key should toggle the display of an orthographic projection of a cross hair centered over your scene. 
-The cross hairs themselves can be a simple set of lines rendered in white – 5 points.
-*/
+The + key should toggle the display of an orthographic projection of a cross hair centered over your scene. 
+The cross hairs themselves can be a simple set of lines rendered in white */
 		case "+":
 		render_crosshair = !render_crosshair; 
 		break; 
@@ -163,7 +207,7 @@ function keypresslistener(event){
 }
 
 
-function colorCube()
+function initializeCube()
 {
     quad( 1, 0, 3, 2);
     quad( 2, 3, 7, 6);
@@ -186,17 +230,6 @@ function quad(a, b, c, d)
         vec4(  0.5, -0.5, -0.5, 1.0 )
     ];
 
-    var vertexColors = [
-        [ 0.0, 0.0, 0.0, 1.0 ],  // black
-        [ 1.0, 0.0, 0.0, 1.0 ],  // red
-        [ 1.0, 1.0, 0.0, 1.0 ],  // yellow
-        [ 0.0, 1.0, 0.0, 1.0 ],  // green
-        [ 0.0, 0.0, 1.0, 1.0 ],  // blue
-        [ 1.0, 0.0, 1.0, 1.0 ],  // magenta
-        [ 0.0, 1.0, 1.0, 1.0 ],  // cyan
-        [ 1.0, 1.0, 1.0, 1.0 ]   // white
-    ];
-
     // We need to parition the quad into two triangles in order for
     // WebGL to be able to render it.  In this case, we create two
     // triangles from the quad indices
@@ -209,10 +242,36 @@ function quad(a, b, c, d)
         points.push( vertices[indices[i]] );
         //colors.push( vertexColors[indices[i]] );
 
-        // for solid colored faces use
-        colors.push(vertexColors[a]);
 
     }
+}
+
+function setColors(colorID)
+{
+    var vertexColors = [
+        [ 0.5, 0.25, 1.0, 1.0 ], // salmon 
+        [ 1.0, 0.5, 0.5, 1.0 ],  // red
+        [ 1.0, 1.0, 0.0, 1.0 ],  // yellow
+        [ 0.0, 1.0, 0.0, 1.0 ],  // green
+        [ 0.0, 0.0, 1.0, 1.0 ],  // blue
+        [ 1.0, 0.0, 1.0, 1.0 ],  // magenta
+        [ 0.0, 1.0, 1.0, 1.0 ],  // cyan
+        [ 0.5, 0.5, 0.5, 1.0 ]   // gray
+    ];
+	
+	
+    for ( var i = 0; i < 36; i++ ){
+    		
+        colors[i]=vertexColors[colorID%8]; 
+	}
+
+}
+
+function setWhite()
+{
+	for(var i=0; i<36; i++){
+		colors[i]=[1.0, 1.0, 1.0, 1.0]; 
+	}
 }
 
 function render()
@@ -223,15 +282,25 @@ function render()
     //camera transform
     var camera=mat4(); 
     
-    camera=mult(camera, scalem(.08,.08,.08));
-    //camera = mult(camera, translate(0, 0, 20));
+    
 
-    //This doesn't do anything yet. Modify when you need to rotate the camera
-    camera = mult(camera, rotate(0, 0, 1, 0)); 
-    //multiply by perspective matrix. Use 45 as the field of view parameter, small zNear, big zFar.
-    // -11 and 11 work for znear and zfar because you're moving the cubes 10 away from the origin 
 
-	//camera=mult(camera, perspective(45, 1, -20, 20));
+    //zoom out so you can see all the cubes
+    camera=mult(camera, scalem(.5,.5,.5));
+
+    //multiply by perspective matrix. Use 45 as the initial field of view parameter, small zNear, big zFar.
+	camera=mult(camera, perspective(field_of_view, 1, -11, 11));
+	
+    //Rotate the camera angle
+    camera = mult(camera, rotate(azimuth_cam_angle, 0, 1, 0)); 
+
+	
+    //Moves the camera up and down the axes
+    camera = mult(camera, translate(cam_x, cam_y, cam_z));
+
+	
+	gl.uniformMatrix4fv( camera_transform_loc, false, flatten( camera ) );    // # Fill in GPU's camera transform
+
 	
     gl.uniformMatrix4fv(camera_transform_loc, false, flatten(camera)); 
 
@@ -244,16 +313,22 @@ gl.uniformMat
 
 */
 
-    //Draw all 8 cubes. 1 in args represents positive position relative to the axis, -1 represents negative. 
-    drawcube(1, 1, 1);
-    drawcube(1, 1, -1);
-    drawcube(1, -1, 1);
-    drawcube(-1, 1, 1);
-    drawcube(1, -1, -1);
-    drawcube(-1, 1, -1);
-    drawcube(-1, -1, 1);
-    drawcube(-1, -1, -1);
 
+
+    //Draw all 8 cubes. 1 in args represents positive position relative to the axis, -1 represents negative. 
+    drawcube(1, 1, 1, numColorCycles);
+    drawcube(1, 1, -1, numColorCycles+1);
+    drawcube(1, -1, 1, numColorCycles+2);
+    drawcube(-1, 1, 1, numColorCycles+3);
+    drawcube(1, -1, -1, numColorCycles+4);
+    drawcube(-1, 1, -1, numColorCycles+5);
+    drawcube(-1, -1, 1, numColorCycles+6);
+    drawcube(-1, -1, -1, numColorCycles+7);
+
+
+	//draw boundary lines around the 8 cubes. 
+	drawlines(1, 1, 1);
+	
 
     if(render_crosshair){
     	//render the crosshair:
@@ -263,14 +338,27 @@ gl.uniformMat
     requestAnimFrame( render );
 }
 
-function drawcube(x, y, z){
+function drawcube(x, y, z, colorID){
 	var mv_transform = mat4();
 	//moves cube to its destination. 
 	mv_transform=mult(mv_transform, translate(dist*x, dist*y, dist*z));
+
+	//color the cubes
+	setColors(colorID); 
+
 	gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, flatten(colors), gl.DYNAMIC_DRAW); 
     gl.uniformMatrix4fv( model_transform_loc, false, flatten(mv_transform /* mat4()*/));    //Fill in GPU's model transform with the set matrix
     gl.drawArrays( gl.TRIANGLES, 0, NumVertices );
 
+
 }
 
+function drawlines(x, y, z){
+	//make the boundary lines white
+	setWhite(); 
+
+	//outline the cube faces in white to make them visible
+	gl.drawArrays(gl.LINES, 0, NumVertices)	
+
+}
