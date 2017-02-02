@@ -89,6 +89,11 @@ window.onload=function init()
     //enable z-buffer
 	gl.enable(gl.DEPTH_TEST);
 
+
+	//these are included to test why it looks like we're viewing the back of the box
+	gl.frontFace(gl.CCW);
+	gl.disable(gl.CULL_FACE);
+
 	//Gives my shaders to WebGL
 	var program = initShaders(gl, "vertex-shader", "fragment-shader");
 	gl.useProgram(program); 
@@ -288,7 +293,7 @@ function quad(a, b, c, d)
 
     var indices = [ a, b, c, a, c, d ];
 
-    for ( var i = 0; i < indices.length; ++i ) {
+    for ( var i = indices.length-1; i >=0; --i ) {
         points.push( vertices[indices[i]] );
         //colors.push( vertexColors[indices[i]] );
     }
@@ -368,7 +373,7 @@ function render()
 
 
     //multiply by perspective matrix. Use 45 as the initial field of view parameter, small zNear, big zFar.
-	camera=mult(camera, perspective(field_of_view, 1, -11, 11));
+	camera=mult(camera, perspective(field_of_view, 1, 11, -11));
 
 
     //Rotate the camera angle
